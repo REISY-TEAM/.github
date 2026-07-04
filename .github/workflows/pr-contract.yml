@@ -1,0 +1,145 @@
+name: pr-contract
+
+on:
+  workflow_call:
+    inputs:
+      allowed-branch-prefixes:
+        description: Comma-separated branch prefixes allowed for pull requests.
+        required: false
+        type: string
+        default: feature/,fix/,analysis/,refactor/,chore/,docs/
+      max-changed-lines:
+        description: PRs above this changed-line count require a large PR justification.
+        required: false
+        type: number
+        default: 400
+      max-changed-files:
+        description: PRs above this changed-file count require a large PR justification.
+        required: false
+        type: number
+        default: 15
+      require-checked-checklist:
+        description: Require all checklist items from the PR template to be checked.
+        required: false
+        type: boolean
+        default: true
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-contract-${{ github.repository }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate PR contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate PR title, body, checklist, branch, and size
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.setFailed("This workflow must run from a pull request event.");
+              return;
+            }
+
+            const inputs = {
+              branchPrefixes: `${{ inputs.allowed-branch-prefixes || 'feature/,fix/,analysis/,refactor/,chore/,docs/' }}`,
+              maxChangedLines: Number(`${{ inputs.max-changed-lines || 400 }}`),
+              maxChangedFiles: Number(`${{ inputs.max-changed-files || 15 }}`),
+              requireCheckedChecklist: `${{ inputs.require-checked-checklist || true }}` !== "false",
+            };
+
+            const body = pr.body || "";
+            const title = pr.title || "";
+            const errors = [];
+            const requiredHeadings = [
+              "## What",
+              "## Why",
+              "## How tested",
+              "## Risk / rollback",
+              "## Screenshots / artifacts",
+            ];
+
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            }
+
+            function sectionText(heading) {
+              const pattern = new RegExp(`${escapeRegExp(heading)}\\s*([\\s\\S]*?)(?=\\n##\\s|\\n---|$)`, "i");
+              const match = body.match(pattern);
+              if (!match) return null;
+              return match[1]
+                .replace(/<!--[\s\S]*?-->/g, "")
+                .replace(/^- \[[ xX]\].*$/gm, "")
+                .trim();
+            }
+
+            for (const heading of requiredHeadings) {
+              const text = sectionText(heading);
+              if (text === null) {
+                errors.push(`Missing required section: ${heading}`);
+              } else if (!text) {
+                errors.push(`Required section is empty: ${heading}`);
+              }
+            }
+
+            if (/<!--[\s\S]*?-->/.test(body)) {
+              errors.push("Remove placeholder HTML comments from the PR description.");
+            }
+
+            const allowedPrefixes = inputs.branchPrefixes
+              .split(",")
+              .map((prefix) => prefix.trim())
+              .filter(Boolean);
+            if (!allowedPrefixes.some((prefix) => pr.head.ref.startsWith(prefix))) {
+              errors.push(`Branch '${pr.head.ref}' must start with one of: ${allowedPrefixes.join(", ")}`);
+            }
+
+            if (title.length < 8) {
+              errors.push("PR title is too short. Use a clear, descriptive title.");
+            }
+            if (/^(update|changes|fix|work|wip)$/i.test(title.trim())) {
+              errors.push("PR title is too vague. Describe the actual change.");
+            }
+
+            if (inputs.requireCheckedChecklist) {
+              const uncheckedItems = body
+                .split("\n")
+                .filter((line) => /^- \[ \]/.test(line.trim()));
+              if (uncheckedItems.length > 0) {
+                errors.push("All PR checklist items must be checked before review.");
+              }
+            }
+
+            const changedLines = Number(pr.additions || 0) + Number(pr.deletions || 0);
+            const changedFiles = Number(pr.changed_files || 0);
+            const isLarge = changedLines > inputs.maxChangedLines || changedFiles > inputs.maxChangedFiles;
+            const largeText = sectionText("## Large PR justification");
+
+            if (isLarge) {
+              if (largeText === null || !largeText) {
+                errors.push(
+                  `Large PRs require a filled '## Large PR justification' section. ` +
+                  `This PR has ${changedLines} changed lines and ${changedFiles} changed files.`
+                );
+              }
+            } else if (largeText !== null) {
+              errors.push("Delete the '## Large PR justification' section when the PR is not large.");
+            }
+
+            if (errors.length > 0) {
+              core.setFailed([
+                "PR description does not satisfy the REISY PR contract:",
+                ...errors.map((error) => `- ${error}`),
+              ].join("\n"));
+            } else {
+              core.notice("PR contract passed.");
+            }
