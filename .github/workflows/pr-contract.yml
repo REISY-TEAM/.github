@@ -51,10 +51,10 @@ jobs:
             }
 
             const inputs = {
-              branchPrefixes: `${{ inputs.allowed-branch-prefixes || 'feature/,fix/,analysis/,refactor/,chore/,docs/' }}`,
-              maxChangedLines: Number(`${{ inputs.max-changed-lines || 400 }}`),
-              maxChangedFiles: Number(`${{ inputs.max-changed-files || 15 }}`),
-              requireCheckedChecklist: `${{ inputs.require-checked-checklist || true }}` !== "false",
+              branchPrefixes: `${{ inputs['allowed-branch-prefixes'] || 'feature/,fix/,analysis/,refactor/,chore/,docs/' }}`,
+              maxChangedLines: Number(`${{ inputs['max-changed-lines'] || 400 }}`),
+              maxChangedFiles: Number(`${{ inputs['max-changed-files'] || 15 }}`),
+              requireCheckedChecklist: `${{ inputs['require-checked-checklist'] || true }}` !== "false",
             };
 
             const body = pr.body || "";
