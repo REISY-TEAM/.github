@@ -1,0 +1,9 @@
+{
+  "name": "REISY PR Contract",
+  "description": "Validate PR title, body, checklist, branch name, and large PR justification.",
+  "iconName": "octicon checklist",
+  "categories": [
+    "Automation",
+    "Code review"
+  ]
+}
