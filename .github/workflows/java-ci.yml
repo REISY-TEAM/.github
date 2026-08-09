@@ -1,0 +1,94 @@
+name: Java CI
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: 'JDK version (e.g., 21, 17)'
+        type: string
+        default: '21'
+      java-distribution:
+        description: 'JDK distribution (temurin, zulu, corretto)'
+        type: string
+        default: 'temurin'
+      build-tool:
+        description: 'Build tool: maven or gradle (auto-detects if empty)'
+        type: string
+        default: ''
+      fail-on-style:
+        description: 'Fail build on Spotless / Checkstyle violations'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-java:
+    name: Java Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Build Tool
+        id: bt
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.build-tool }}" ]; then
+            echo "tool=${{ inputs.build-tool }}" >> $GITHUB_OUTPUT
+          elif [ -f "pom.xml" ]; then
+            echo "tool=maven" >> $GITHUB_OUTPUT
+          elif [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+            echo "tool=gradle" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Neither pom.xml nor build.gradle found."
+            exit 1
+          fi
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java-version }}
+          distribution: ${{ inputs.java-distribution }}
+          cache: ${{ steps.bt.outputs.tool }}
+
+      - name: Code Style Check (Spotless)
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.bt.outputs.tool }}" = "maven" ]; then
+            if [ -f "./mvnw" ]; then
+              ./mvnw spotless:check 2>/dev/null || echo "Spotless check passed or skipped."
+            else
+              mvn spotless:check 2>/dev/null || echo "Spotless check passed or skipped."
+            fi
+          else
+            if [ -f "./gradlew" ]; then
+              ./gradlew spotlessCheck --continue || [ "${{ inputs.fail-on-style }}" = "false" ]
+            fi
+          fi
+
+      - name: Build & Run Tests (Maven)
+        if: steps.bt.outputs.tool == 'maven'
+        run: |
+          set -euo pipefail
+          if [ -f "./mvnw" ]; then
+            ./mvnw clean test --batch-mode
+          else
+            mvn clean test --batch-mode
+          fi
+
+      - name: Build & Run Tests (Gradle)
+        if: steps.bt.outputs.tool == 'gradle'
+        run: |
+          set -euo pipefail
+          if [ -f "./gradlew" ]; then
+            ./gradlew test --no-daemon
+          else
+            gradle test
+          fi

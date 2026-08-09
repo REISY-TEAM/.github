@@ -135,6 +135,23 @@ jobs:
               errors.push("Delete the '## Large PR justification' section when the PR is not large.");
             }
 
+            // Enforce BDD .feature spec requirement on feature/ and fix/ branches
+            const branchName = pr.head.ref || "";
+            if (branchName.startsWith("feature/") || branchName.startsWith("fix/")) {
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                per_page: 100,
+              });
+              const hasFeatureFile = files.some((file) => file.filename.endsWith(".feature"));
+              if (!hasFeatureFile) {
+                errors.push(
+                  "Missing BDD specification: PRs on 'feature/' and 'fix/' branches MUST include or update at least one '.feature' file (e.g. in features/)."
+                );
+              }
+            }
+
             if (errors.length > 0) {
               core.setFailed([
                 "PR description does not satisfy the REISY PR contract:",

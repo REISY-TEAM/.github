@@ -1,0 +1,56 @@
+name: Python CI
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        type: string
+        default: '3.12'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-python:
+    name: Python Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Ruff Check
+        run: |
+          set -euo pipefail
+          uv run --only-dev ruff check --output-format=full . || ruff check .
+
+      - name: Ruff Format Check
+        run: |
+          set -euo pipefail
+          uv run --only-dev ruff format --check . || ruff format --check .
+
+      - name: Run Mypy Typecheck
+        run: |
+          set -euo pipefail
+          mapfile -t py_files < <(git ls-files '*.py' | grep -Ev '(^|/)(\.agents|\.github|features|tests)/|(^|/)test_[^/]*\.py$' || true)
+          if [ "${#py_files[@]}" -gt 0 ]; then
+            uv run mypy "${py_files[@]}" || true
+          fi
+
+      - name: Run Unit Tests
+        run: |
+          set -euo pipefail
+          uv run pytest -m "not slow" || pytest

@@ -1,0 +1,107 @@
+name: Node.js / React Native CI
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: 'Node.js version to use'
+        type: string
+        default: '20'
+      package-manager:
+        description: 'Package manager: pnpm, npm, yarn, or bun (auto-detects if empty)'
+        type: string
+        default: ''
+      run-lint:
+        description: 'Run linter check (eslint/biome/prettier)'
+        type: boolean
+        default: true
+      run-typecheck:
+        description: 'Run TypeScript typecheck (tsc --noEmit)'
+        type: boolean
+        default: true
+      test-command:
+        description: 'Command to run tests'
+        type: string
+        default: 'npm test'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-node:
+    name: Node.js Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Package Manager
+        id: pm
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.package-manager }}" ]; then
+            echo "manager=${{ inputs.package-manager }}" >> $GITHUB_OUTPUT
+          elif [ -f "pnpm-lock.yaml" ]; then
+            echo "manager=pnpm" >> $GITHUB_OUTPUT
+          elif [ -f "yarn.lock" ]; then
+            echo "manager=yarn" >> $GITHUB_OUTPUT
+          elif [ -f "bun.lockb" ] || [ -f "bun.lock" ]; then
+            echo "manager=bun" >> $GITHUB_OUTPUT
+          else
+            echo "manager=npm" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup pnpm (if detected)
+        if: steps.pm.outputs.manager == 'pnpm'
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ steps.pm.outputs.manager != 'bun' && steps.pm.outputs.manager || '' }}
+
+      - name: Install Dependencies
+        run: |
+          set -euo pipefail
+          case "${{ steps.pm.outputs.manager }}" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --immutable ;;
+            bun)  bun install --frozen-lockfile ;;
+            npm)  npm ci || npm install ;;
+          esac
+
+      - name: Lint Check
+        if: inputs.run-lint
+        run: |
+          set -euo pipefail
+          if npm run | grep -q 'lint'; then
+            ${{ steps.pm.outputs.manager }} run lint
+          else
+            echo "No 'lint' script found in package.json; skipping."
+          fi
+
+      - name: TypeScript Typecheck
+        if: inputs.run-typecheck
+        run: |
+          set -euo pipefail
+          if [ -f "tsconfig.json" ]; then
+            npx tsc --noEmit
+          else
+            echo "No tsconfig.json found; skipping typecheck."
+          fi
+
+      - name: Run Unit Tests
+        run: ${{ inputs.test-command }}
+
+      - name: Security Audit
+        run: |
+          set -euo pipefail
+          npm audit --audit-level=high || true
