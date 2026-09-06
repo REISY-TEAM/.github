@@ -1,22 +1,33 @@
 ## What
 
-<!-- One or two sentences. What does this PR change? -->
+<!-- One or two sentences summarizing the change. -->
+
+### Changes by Component
+
+| Component / Subsystem | File(s) | Description of Change |
+|---|---|---|
+| <!-- e.g. Auth / CI / UI --> | <!-- e.g. src/auth/login.ts --> | <!-- Brief change summary --> |
 
 ## Why
 
-<!-- Why is this change needed? Link to an issue, discussion, task, or decision record if one exists. -->
+<!-- Why is this change needed? Describe the problem, bug, or feature request. Link related issues if applicable. -->
 
 ## How tested
 
-<!-- What did you run? What did you observe? Mention any skipped checks, local-only checks, external API limitations, or unavailable credentials. -->
+### Test Evidence
+
+1. **Unit & Integration Tests:** <!-- e.g. `npm test` / `pytest` / `mvn clean test` — PASS -->
+2. **Lint & Static Analysis:** <!-- e.g. `npm run lint` / `ruff check` / `spotlessCheck` — PASS -->
+3. **Typecheck & Build:** <!-- e.g. `tsc --noEmit` / `npm run build` — PASS -->
+4. **Runtime / Live Probing:** <!-- Manual check, API call trace, or container verification -->
 
 ## Risk / rollback
 
-<!-- What could break? How can this be rolled back or disabled? Write "Low risk" only when that is true. -->
+<!-- What could break? How can this be rolled back? (e.g. "Low risk: purely additive workflow file. Rollback: revert commit on main.") -->
 
 ## Screenshots / artifacts
 
-<!-- Add screenshots, logs, generated document links, or notes when relevant. Write "Not applicable" if none. -->
+<!-- Add terminal output logs, screenshots, or write "Not applicable" if none. -->
 
 ## Large PR justification
 
