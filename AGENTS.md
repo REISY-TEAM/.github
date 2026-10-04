@@ -15,11 +15,7 @@ Welcome, Agent. This repository is part of the **REISY-TEAM** organization and f
    - `analysis/`
    *Never push directly to `main`.*
 
-2. **BDD Specification Requirement:**
-   - Every `feature/` or `fix/` branch **MUST** include or update at least one `.feature` Gherkin spec file inside `features/`.
-   - PRs lacking `.feature` updates will automatically fail CI.
-
-3. **PR Description Contract:**
+2. **PR Description Contract:**
    - Every PR body **MUST** contain these exact sections:
      - `## What`
      - `## Why`
@@ -28,7 +24,7 @@ Welcome, Agent. This repository is part of the **REISY-TEAM** organization and f
      - `## Screenshots / artifacts`
    - If changed lines > 400 or changed files > 15, you **MUST** fill out `## Large PR justification`.
 
-4. **Secrets & Security:**
+3. **Secrets & Security:**
    - Never commit private keys, API tokens (`ghp_`, `figd_`), passwords, or raw customer data.
 
 ---
@@ -62,7 +58,7 @@ Agents operating in REISY-TEAM repositories should load and apply the following 
 | Domain | Skill Name | Usage Trigger |
 | :--- | :--- | :--- |
 | **Governance & PRs** | `code-review-excellence` | Reviewing PRs, security auditing, or checking diffs |
-| **BDD & Testing** | `bdd-gherkin-workflow` | Writing or updating `.feature` scenario files |
+| **Specs** | `bdd-gherkin-workflow` | Writing or updating optional `.feature` files that describe behaviour |
 | **CI/CD & Pipelines** | `deployment-pipeline-design` | Modifying GitHub Actions or pre-commit hooks |
 | **Python Stack** | `async-python-patterns` | Writing Python async code, FastAPI endpoints, or data processing |
 | **React Native Stack** | `react-native-navigation` | Building mobile components, navigation, or state management |
