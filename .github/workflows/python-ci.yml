@@ -7,6 +7,10 @@ on:
         description: 'Python version to use'
         type: string
         default: '3.12'
+    secrets:
+      KIT_DEPLOY_KEY:
+        description: 'Read-only deploy key for the private REISY-TEAM/reisy-service-kit. Repos without it skip the step.'
+        required: false
 
 permissions:
   contents: read
@@ -17,6 +21,8 @@ jobs:
     name: Python Validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      HAS_KIT_DEPLOY_KEY: ${{ secrets.KIT_DEPLOY_KEY != '' }}
 
     steps:
       - name: Checkout Code
@@ -31,6 +37,16 @@ jobs:
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v5
+
+      - name: Load the kit deploy key
+        if: env.HAS_KIT_DEPLOY_KEY == 'true'
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.KIT_DEPLOY_KEY }}
+
+      - name: Fetch the kit over SSH
+        if: env.HAS_KIT_DEPLOY_KEY == 'true'
+        run: git config --global url."ssh://git@github.com/REISY-TEAM/reisy-service-kit".insteadOf https://github.com/REISY-TEAM/reisy-service-kit
 
       - name: Ruff Check
         run: |
